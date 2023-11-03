@@ -1,6 +1,0 @@
-{{ if eq (.Values.gcxi.deployment.deployNamespace | default false) true }}
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ .Values.gcxi.app.namespace }}
-{{- end }}
