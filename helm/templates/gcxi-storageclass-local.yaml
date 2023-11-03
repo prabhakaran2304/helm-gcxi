@@ -1,0 +1,13 @@
+{{ if eq (.Values.gcxi.deployment.deployLocalPV | default false) true }}
+{{ if eq (.Values.gcxi.deployment.deployLocalSC | default false) true }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+  name: {{ .Values.gcxi.local.sc.name }}
+provisioner: kubernetes.io/no-provisioner
+reclaimPolicy: {{ .Values.gcxi.local.sc.policy }}
+volumeBindingMode: WaitForFirstConsumer
+{{- end }}
+{{- end }}

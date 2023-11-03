@@ -1,0 +1,93 @@
+{{ if eq (.Values.gcxi.deployment.deployMain | default false) true }}
+{{ if eq (.Values.gcxi.deployment.deployNetworkPolicy | default false) true }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+  name: gcxi-default{{ template "deploymentCode" . }}
+  namespace: {{ .Values.gcxi.app.namespace }}
+spec:
+  egress:
+  - ports:
+      # kubernetes api access - needed for AKV secrets injection
+    - port: 443
+      protocol: TCP
+      # allow DNS lookups
+    - port: 53
+      protocol: TCP
+    - port: 53
+      protocol: UDP
+      # allow meta db
+    - port: {{ .Values.gcxi.env.META_DB_PORT | default 5432 }}
+      protocol: TCP
+      # for Azure Postgres it's always 5432
+      # allow supplementary ports
+      {{- .Values.gcxi.netpol.allowedPorts | toYaml | nindent 4 }}
+    # allow connection to gauth
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          service: gauth
+      podSelector:
+        matchLabels:
+          service: gauth
+    ports:
+    - port: 80
+      protocol: TCP
+    - port: 8080
+      protocol: TCP
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          service: gws
+    ports:
+    - port: 80
+      protocol: TCP
+    - port: 8080
+      protocol: TCP
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          service: smtp
+    ports:
+    - port: 25
+      protocol: TCP
+  - to:
+    - podSelector:
+        matchLabels:
+          gcxi/deployment-code: gcxi{{ template "deploymentCode" . }}
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          gcxi/deployment-code: gcxi{{ template "deploymentCode" . }}
+  - ports:
+      # for now - dont use named port
+      # when enabled, we tend to get multiple issues
+      # - Prometheus scraping errors - 'context deadline exceeded'
+      # - severe http access problems, nginx arbitrarily returning 5xx
+      # 2020/09/02 17:09:46 [warn] 4135#4135: *7654040 [lua] balancer.lua:282: balance(): no peer was returned, balancer: sticky_persistent while connecting to upstream, client: 146.112.56.49, server: gcxi-t4243-blue.nlb01-westus2.stage.genazure.com, request: "GET /MicroStrategy/servlet/mstrWeb HTTP/1.1", upstream: "http://10.210.0.31:8080/MicroStrategy/servlet/mstrWeb", host: "gcxi-t4243-blue.nlb01-westus2.stage.genazure.com"
+      # root cause of all this mess seems to be this ipset error (caught in Azure Monitor)
+      # ipset v6.34: Syntax error: Elem separator in 1.1.1.1,443, but settype hash:net supports none.
+
+      # allow Prometheus scrapes
+      # - port: metrics
+    - port: 8180
+      protocol: TCP
+      # allow MSTR desktop client
+      # - port: mstr
+    - port: 34952
+      protocol: TCP
+      # allow web access
+      # - port: web
+    - port: 8080
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      gcxi/deployment-code: gcxi{{ template "deploymentCode" . }}
+  policyTypes:
+  - Ingress
+  - Egress
+{{- end }}
+{{- end }}

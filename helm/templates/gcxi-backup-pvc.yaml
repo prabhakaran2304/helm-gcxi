@@ -1,0 +1,40 @@
+{{- if or (eq (.Values.gcxi.deployment.deployGlobalShare | default false) true) (eq (.Values.gcxi.deployment.useGlobalShare | default false) false) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  {{- if eq (.Values.gcxi.deployment.deployAzureFileShare | default false) true }}
+  annotations:
+    volume.beta.kubernetes.io/storage-class: ""
+  {{- end }}
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+  {{ if eq (.Values.gcxi.deployment.deployGlobalShare | default false) true }}
+  name: gcxi-backup-pvc{{ template "globalCode" . }}
+  {{- else }}
+  name: gcxi-backup-pvc{{ template "deploymentCode" . }}
+  {{- end }}
+  namespace: {{ .Values.gcxi.app.namespace }}
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.gcxi.pvc.backup.capacity }}
+  {{- if eq (.Values.gcxi.deployment.deployAzureFileShare | default false) true }}
+  selector:
+    matchLabels:
+      gcxi/azfile-pv-gcxi-backup: "true"
+  {{- else if eq (.Values.gcxi.deployment.deployLocalPV | default false) true }}
+  storageClassName: {{ .Values.gcxi.local.sc.name }}
+  {{ if eq (.Values.gcxi.deployment.deployGlobalShare | default false) true }}
+  volumeName: gcxi-backup-pv-local{{ template "globalCode" . }}
+  {{- else }}
+  volumeName: gcxi-backup-pv-local{{ template "deploymentCode" . }}
+  {{- end }}
+  {{- else }}
+  storageClassName: {{ .Values.gcxi.pvc.backup.storageClassName }}
+  {{- if .Values.gcxi.pvc.backup.volumeName }}
+  volumeName: {{ .Values.gcxi.pvc.backup.volumeName }}
+  {{- end }}
+  {{- end }}
+{{- end }}

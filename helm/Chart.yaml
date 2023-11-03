@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: 100.0.021.0000
+description: Genesys Historical Reporting Solution
+name: gcxi
+type: application
+version: 100.0.021+0000

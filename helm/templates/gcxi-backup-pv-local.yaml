@@ -1,0 +1,34 @@
+{{ if eq (.Values.gcxi.deployment.deployLocalPV | default false) true }}
+{{- if or (eq (.Values.gcxi.deployment.deployGlobalShare | default false) true) (eq (.Values.gcxi.deployment.useGlobalShare | default false) false) }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+  {{ if eq (.Values.gcxi.deployment.deployGlobalShare | default false) true }}
+  name: gcxi-backup-pv-local{{ template "globalCode" . }}
+  {{- else }}
+  name: gcxi-backup-pv-local{{ template "deploymentCode" . }}
+  {{- end }}
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: {{ .Values.gcxi.local.pv.backup.capacity }}
+  local:
+    {{ if eq (.Values.gcxi.deployment.deployGlobalShare | default false) true }}
+    path: {{ .Values.gcxi.local.pv.backup.path }}/{{ include "globalCode" . | trimPrefix "-" }}
+    {{- else }}
+    path: {{ .Values.gcxi.local.pv.backup.path }}/{{ include "deploymentCode" . | trimPrefix "-" }}
+    {{- end }}
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: gcxi/local-pv-gcxi-backup
+          operator: In
+          values:
+          - "true"
+  storageClassName: {{ .Values.gcxi.local.sc.name }}
+{{- end }}
+{{- end }}

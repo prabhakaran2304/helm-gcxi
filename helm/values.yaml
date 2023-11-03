@@ -1,0 +1,555 @@
+# Default values for gcxi.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+gcxi:
+  app:
+    namespace: gcxi
+
+  configMaps:
+  - name: gcxi-config-pg
+
+  deployment:
+    # provides ability to deploy multiple instances of GCXI in the same namespace
+    # this code is added as a suffix to all k8s objects when doing 'deployMain'
+    # also used in global ingress rule 'deployGlobalRule' to set an active gcxi service to point to
+    code:
+    # use Azure file share as backup volume
+    deployAzureFileShare: false
+    # create a "global" gcxi ingress rule?
+    # used for switching between parallel GCXI deployments, e. g. green and blue
+    # applicable in case of multiple concurrent deployments, otherwise leave false
+    deployGlobalRule: false
+    # create PVC shared across multiple deployments?
+    # used for backup files exchange between deployments
+    # applicable in case of multiple concurrent deployments, otherwise leave false
+    deployGlobalShare: false
+    # deploy Grafana dashboard?
+    deployGrafanaDashboard: false
+    # create ingress rules for deployment?
+    deployIngress: true
+    # deploy backup job?
+    deployJobBackup: false
+    # deploy cleanup job?
+    # if yes, will be executed on pre-delete hook
+    deployJobCleanup: true
+    # deploy init job?
+    # if yes, will be executed on post-install hook
+    deployJobInit: true
+    # deploy restore job?
+    deployJobRestore: false
+    # deploy predefined PV of type 'local'?
+    # this default 'local' PV is intended ONLY for compliance with legacy hostPath mounts in existing deployments
+    # it assumes that the dirs mentioned in 'path' entries below already exist in the cluster
+    # and that these dirs are already pre-configured as shared across cluster nodes
+    # in all other cases prepare your own PVs on a proper shared storage
+    # NB: as PVs and SCs are cluster-wide objects, our sample PVs and SC do not support multiple concurrent installations thru deployment.code - use you own pre-provided PVs in this case
+    deployLocalPV: false
+    # deploy storage class local-storage?
+    deployLocalSC: false
+    # deploy main GCXI components
+    deployMain: true
+    # create network policy?
+    deployNetworkPolicy: false
+    # deploy Postgres container?
+    deployPostgres: false
+    # deploy Postgres ConfigMap and Secrets?
+    # in some environments will be injected by other tools
+    # mutually exclusive with injectPostgresConfig
+    deployPostgresConfig: true
+    # deploy Prometheus rules?
+    deployPrometheusRules: false
+    # generate random Secrets for gcxi deployment?
+    deployRandomSecrets: false
+    # create Secrets for gcxi deployment?
+    # if not, must pre-exist
+    deploySecrets: true
+    # deploy Prometheus Service Monitor object?
+    deployServiceMonitor: false
+    # deploy main StatefulSet?
+    deployWorkloads: true
+    # internal
+    environment:
+    # override Chart.AppVersion
+    gcxiVersion:
+    # global components identifier (suffix)
+    # will be part of 'main' gcxi url, like gcxi-mycode.customer.com/MicroStrategy/servlet/mstrWeb
+    globalCode:
+    # run main GCXI container with hostIPC propagation
+    # we need this setting because of Microstrategy shared memory requirements
+    # https://www2.microstrategy.com/producthelp/Current/InstallConfig/en-us/Content/Software_requirements_and_recommendations.htm
+    # (section "Configuring shared memory resources")
+    # on highly restricted environments, like Openshift, hostIPC=true may result in permission problems
+    # if this is the case, consult your system administrator
+    hostIPC: true
+    # inject secrets thru CSI driver
+    injectSecretGCXI: false
+    injectSecretGIM: false
+    injectSecretGWS: false
+    injectSecretIWD: false
+    injectSecretMSTRLicense: false
+    # inject meta db admin secrets thru CSI driver
+    # mutually exclusive with deployPostgresConfig
+    injectSecretPG: false
+    # internal
+    region:
+    # internal
+    tenantColor:
+    # internal
+    tenantId:
+    # internal
+    tenantName:
+    # Values: local|azure|tbd...
+    type: local
+    # allows injecting secrets thru CSI driver
+    # must be enabled to use any of injectSecret* options
+    useCSISecrets: false
+    # use dynamically provisioned volume for logs?
+    # mutually exclusive with useHostPathLogPV and deployLocalPV
+    useDynamicLogPV: true
+    # use PVC shared across multiple deployments?
+    # used for backup files exchange between deployments
+    # applicable in case of multiple concurrent deployments, otherwise leave false
+    useGlobalShare: false
+    # use init container to setup permissions for hostPath log volume?
+    # makes sense only in conjuction with useHostPathLogPV = true
+    useHostPathLogInitContainer: false
+    # use hostPath volume for logs?
+    # mutually exclusive with useDynamicLogPV
+    useHostPathLogPV: false
+    # http protocol identifier, used to define var MSTR_EXTURL correctly
+    urlProto: https
+
+  dnsConfig:
+    options:
+      # kubernetes default
+    - name: ndots
+      value: "5"
+    # searches:
+    # - example.com
+
+  env:
+    ### DSN (data source) properties: GIM and others ###
+
+    ## if some vars are not applicable for your confiduration, leave them empty or deleted
+    ## see extended explanation and examples of DSN definitions in docker-compose.yml file
+
+    ## The notation with DNNDEF* vars allows to define multiple DSNs
+    ## Each DSNDEF variable represents one DSN definition
+    ## For standard GCXI projects DSN_NAMEs must be predefined:
+    ## GCXI_GIM_DB = for project GCXI / CX Insights
+    ## IWD_DB = for project IWD
+    ## DSNs defined with other names will be created in MSTR, but not used by default
+
+    ## LOGIN and PASSWORD vars for each DSNDEF may be defined thru secrets (see gcxi-secret.yaml)
+    ## that's why they are separated from main DSNDEF string
+    ## if you store them as secrets, leave them empty (but not deleted!) in main DSNDEF definition string
+
+    GCXI_GIM_DB:
+      ## GCXI_GIM_DB.DSNDEF: definition for GCXI_GIM_DB DSN (connection to GIM database); format: DSN_NAME=GCXI_GIM_DB;DB_TYPE=;DB_TYPE_EX=;HOST=;PORT=;DB_NAME=;LOGIN=;PASSWORD=
+      DSNDEF:
+      LOGIN:
+      PASSWORD:
+
+    IWD_DB:
+      ## IWD_DB.DSNDEF: definition for IWD_DB DSN (connection to IWD database); format: DSN_NAME=IWD_DB;DB_TYPE=;DB_TYPE_EX=;HOST=;PORT=;DB_NAME=;LOGIN=;PASSWORD=
+      DSNDEF:
+      LOGIN:
+      PASSWORD:
+
+    ## extra DSNDEFs
+    ## for each item there will be created:
+    ## - a DSNDEF variable in ConfigMap gcxi-config
+    ## - a pair of entries (LOGIN and PASSWORD) in gcxi-secret Secret
+    # DSNDEFS:
+    # - NAME: GCXI_EXAMPLE_1
+    #   DSNDEF: DSN_NAME=GCXI_EXAMPLE_1;DB_TYPE=;DB_TYPE_EX=;HOST=;PORT=;DB_NAME=;LOGIN=;PASSWORD=
+    #   LOGIN:
+    #   PASSWORD:
+    # - NAME: GCXI_EXAMPLE_2
+    #   DSNDEF: DSN_NAME=GCXI_EXAMPLE_2;DB_TYPE=;DB_TYPE_EX=;HOST=;PORT=;DB_NAME=;LOGIN=;PASSWORD=
+    #   LOGIN:
+    #   PASSWORD:
+
+    ## in this variable you can pass to the container a full definition(s) of your ODBC DSN(s) for a given DSNDEF(s)
+    ## makes sense only for DRV_TYPE=ODBC
+    # DSN_ODBCINI: |-
+    #   [ODBC Data Sources]
+    #   GCXI_GIM_DB=MicroStrategy ODBC Driver for PostgreSQL Wire Protocol
+    #   [GCXI_GIM_DB]
+    #   ApplicationUsingThreads=1
+    #   AlternateServers=
+    #   <...full driver definition here...>
+
+    ### Meta db properties ###
+
+    ## MSTR meta and history are databases where GCXI / Microstrategy stores its internal information.
+    ## Values below needed to provide RDBMS credentials and desired names for logins and databases to be created.
+    ## You may use either your own external postgres server, or use Postgres in container provided by gcxi-postgres.yaml
+    ## If you are using meta db provided by gcxi-postgres deployment, all META_* variables may be left empty - defaults will be used.
+
+    # META_DB_HOST: meta db host
+    META_DB_HOST:
+    # META_DB_PORT: meta db port
+    META_DB_PORT:
+
+    # META_DB_ADMIN: existing admin user of RDBMS in which meta and hist databases will be created; this user must have rights to create databases and other db users, and also assign ownership
+    META_DB_ADMIN: postgres
+    # META_DB_ADMINDB: meta db admin user's database
+    META_DB_ADMINDB:
+    # META_DB_ADMINPWD: meta db admin user's password
+    META_DB_ADMINPWD: g1n2s3s4
+
+    ## variables META_[DB|HIST]_[LOGIN|PASSWORD] are used both by job 'gcxi-init' (which performs initial deployment of meta db) and deployment 'gcxi' (which utilizes meta db as its service database)
+    ## job reads this variables to know what databases to create
+    ## deployment reads this variables to know what databases to connect to
+    ## these particular vars may be left empty regardless of Postgres server caonfiguration you are using
+    ## set them only if you want (for some reason) to define non-default naming for GCXI service databases in Postgres server
+
+    # META_DB_LOGIN: desired user login and database name for MSTR meta db; must be compliant with Postgres naming requirements; default is: mstr_meta - leave empty to use default
+    META_DB_LOGIN:
+    # META_DB_PASSWORD: meta db user pwd
+    META_DB_PASSWORD:
+    # META_HIST_LOGIN: desired user login and database name for MSTR history db; must be compliant with Postgres naming requirements; default is: mstr_hist - leave empty to use default
+    META_HIST_LOGIN:
+    # META_HIST_PASSWORD: hist db user pwd
+    META_HIST_PASSWORD:
+
+
+    ### Jobs ###
+
+    BACKUP_TAG:
+    RESTORE_TAG:
+
+
+    ### MSTR Administrator user properties ###
+
+    ## MSTR Administrator password requirements:
+    ## Min number of chars 8
+    ## Min 1 upper case
+    ## Min 1 lower case
+    ## Min 1 numeric
+    ## Do not allow user login and full name in password
+
+    ## in case of the very first GCXI run MSTR_PASSWORD would be the new password to be set instead of the default one
+    ## in subsequent runs MSTR_PASSWORD would be simply the current password to use
+    ## in case of password change this would be the new (desired) password to be set
+
+    ## MSTR Administrator password change:
+    ## if you want to change MSTR Administrator password, re-run GCXI containers with the following env vars
+    ## MSTR_PASSWORD_OLD = old (existing) password
+    ## MSTR_PASSWORD = new (desired) password
+
+    # MSTR_PASSWORD: current MSTR Administrator password to use; in case of the new deployment that would be the new password to be set instead of the default one; in case of password change this would be the new (desired) password to be set
+    MSTR_PASSWORD:
+
+    # MSTR_PASSWORD_OLD: in case of pwd change this would be the old MSTR Administrator password to be replaced; otherwise leave empty
+    MSTR_PASSWORD_OLD:
+
+
+    ### MSTR License ###
+
+    MSTR_LICENSE:
+
+
+    ### File Processing ###
+
+    ## FILEDEF* variable family allows to modify files inside the container
+    ## for now it supports only upserts into property files
+    ## for each item there will be created:
+    ## - a FILEDEF variable in ConfigMap gcxi-config
+    # FILEDEFS:
+    # - FILEDEF: FILE=/opt/tomcat/webapps/MicroStrategy/WEB-INF/xml/sys_defaults.properties;DATA=defaultloginmode=16|enabledloginmode=17
+
+    ## FILEOVR* variable family allows to overwrite (or create if not exists) an arbitrary file completely
+    ## can be used for any kind of files
+    ## for each item there will be created:
+    ## - a FILEOVR variable in ConfigMap gcxi-config
+    ## - an optional companion variable FILEOVR__DATA used for convenient injection of multiline values
+    # FILEOVRS:
+    # - FILEOVR: FILE=/tmp/mydir/example.xml
+    #   FILEOVR__DATA: |-
+    #     <example>
+    #       <param-name>exmple value</param-name>
+    #     </example>
+
+
+    ### Other container properties ###
+
+    # access restrictions switch
+    # values: none, static, dynamic, all
+    ACCESS_RESTRICTION:
+
+    # will be set as MSTR email server with a command like:
+    # ALTER EMAILDEVICE 'Webmail' SERVER "${EMAIL_SERVER}" PORT ${EMAIL_PORT} USESMARTHOST TRUE;
+    # NB: this is an example for explanatory purposes, the exact command may be different
+    EMAIL_SERVER:
+
+    # MSTR_EXTURL: browser address for MicroStrategyLibrary web app; format: http(s)://myhost:myport; as Library access is done thru browser link, specify your real (not container's) MSTR host and exposed web port
+    MSTR_EXTURL:
+
+    # goes into postgres container
+    # for some type of mounts a permission problem may occur,
+    # as Postgres won't be able to do chmod in mount root
+    # (this is the case for Azure, for example)
+    # in this case add subfolder to this path, e.g. var/lib/postgresql/data/gcxi
+    PGDATA: /var/lib/postgresql/data
+
+    # RUN_MODE: do not change
+    RUN_MODE: kube
+
+  images:
+    # full image notation, consumed as is
+    init: alpine
+    gcxi:
+      # gcxi image names, concatenated with repository and version
+      control: gcxi_control
+      worker: gcxi
+    # full image notation, consumed as is
+    postgres: postgres:11
+    repository:
+
+  imagePullPolicy:
+    control: Always
+    postgres: Always
+    worker: Always
+
+  ingress:
+    # http path and annotations may be overriden for external and internal access separately
+    annotations:
+      kubernetes.io/ingress.class: "nginx"
+      nginx.ingress.kubernetes.io/affinity: cookie
+      nginx.ingress.kubernetes.io/affinity-mode: persistent
+      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+      nginx.ingress.kubernetes.io/proxy-buffer-size: "8k"
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    domain:
+    external:
+      annotations:
+      host:
+      tls:
+        enabled: false
+        secretName:
+    internal:
+      annotations:
+      host:
+      tls:
+        enabled: false
+        secretName:
+    path: /
+
+  jobs:
+    ttlSecondsAfterFinished: 600
+
+  labels:
+    control: {}
+    postgres: {}
+    worker: {}
+    # worker:
+    #   key1: example1
+    #   key2: example2
+
+  # here is an explanation for preStop sleep hook
+  # https://philpearl.github.io/post/k8s_ingress/
+  lifecycle:
+    worker:
+      preStop:
+        exec:
+          command:
+          - /bin/sleep
+          - "20"
+
+  netpol:
+    # allow popular DB ports by default
+    allowedPorts:
+    - port: 1521
+      protocol: TCP
+    - port: 3306
+      protocol: TCP
+    - port: 5432
+      protocol: TCP
+
+  # you can configure nodeSelectors if needed
+  nodeSelectors:
+    control: {}
+    postgres: {}
+    worker: {}
+
+  podAntiAffinity:
+    topologyKey: kubernetes.io/hostname
+
+  ports:
+    # meta db Postgres container
+    postgres:
+      # Postgres tcp port of GCXI meta db
+      db: 5432
+    # main GCXI worker container
+    worker:
+      # Prometheus metric endpoint
+      metrics: 8180
+      # MSTR tcp port for client tools, like Developer
+      mstr: 34952
+      # GCXI web app http port
+      web: 8080
+
+  priorityClassName:
+
+  probes:
+    worker:
+      livenessProbe: {}
+      readinessProbe:
+        failureThreshold: 2
+        tcpSocket:
+          port: web
+        # regular gcxi container start is about 10 min
+        initialDelaySeconds: 300
+        periodSeconds: 10
+        timeoutSeconds: 5
+
+  pvc:
+    # meta db permanent and temporary backups
+    backup:
+      capacity: 1Gi
+      # if gcxi.deployment.deployLocalPV == true, this defaults to gcxi.storageClass.local.name
+      # otherwise must be set explicitly
+      storageClassName:
+      volumeName:
+    # storage for main gcxi workers logs (Microstrategy server logs)
+    log:
+      capacity: 1Gi
+      # for logs we provide an option to use a hostPath PVC
+      hostPath: /mnt/log/gcxi
+      # if gcxi.deployment.deployLocalPV == true, this defaults to gcxi.storageClass.local.name
+      # otherwise must be set explicitly
+      storageClassName:
+      volumeName:
+    # storage for meta db Postgres data volume
+    postgres:
+      capacity: 2Gi
+      # if gcxi.deployment.deployLocalPV == true, this defaults to gcxi.storageClass.local.name
+      # otherwise must be set explicitly
+      storageClassName:
+      volumeName:
+    # storage for main gcxi workers cluster data (Microstrategy caches and cubes)
+    # requires ReadWriteMany
+    share:
+      capacity: 2Gi
+      # if gcxi.deployment.deployLocalPV == true, this defaults to gcxi.storageClass.local.name
+      # otherwise must be set explicitly
+      storageClassName:
+      volumeName:
+
+  replicas:
+    postgres: 1
+    worker: 2
+
+  resources:
+    worker:
+      requests:
+        cpu: 1
+        memory: 8Gi
+      limits:
+        # https://medium.com/omio-engineering/cpu-limits-and-aggressive-throttling-in-kubernetes-c5b20bd8a718
+        # cpu: 4
+        memory: 64Gi
+
+  secrets:
+  - name: gcxi-secret-pg
+
+  securityContext:
+    control:
+      fsGroup: 500
+      runAsUser: 500
+      runAsGroup: 500
+    worker:
+      fsGroup: 500
+      runAsUser: 500
+      runAsGroup: 500
+
+  serviceAccount:
+    control: {}
+    postgres: {}
+    worker: {}
+    # worker:
+    #   automountServiceAccountToken: true
+    #   serviceAccountName: default
+
+  svc:
+    postgres:
+      type: NodePort
+    worker:
+      domain: gcxi-mstr
+      type: NodePort
+
+  # https://pracucci.com/graceful-shutdown-of-kubernetes-pods.html
+  terminationGracePeriodSeconds: 90
+
+  # you can configure tolerations if needed, see example below
+  tolerations:
+    control: []
+    postgres: []
+    worker: []
+    # worker:
+    # - effect: NoSchedule
+    #   key: nodepool
+    #   operator: Equal
+    #   value: gcxi
+
+  volumeMounts:
+    control:
+    - mountPath: /genesys/gcxi_shared/backup
+      name: gcxi-backup
+      subPathExpr: $(POD_MOUNT)
+      # gcxi secrets mount
+    - mountPath: /genesys/gcxi/var
+      name: gcxi-var
+    postgres:
+    - mountPath: /var/lib/postgresql/data
+      name: gcxi-data
+      # gcxi secrets mount
+    - mountPath: /genesys/gcxi/var
+      name: gcxi-var
+      readOnly: true
+    worker:
+    - mountPath: /genesys/gcxi_config/saml
+      name: gcxi-saml
+    - mountPath: /mnt/log
+      name: gcxi-log
+      subPathExpr: $(POD_NAME)
+    - mountPath: /genesys/gcxi_shared
+      name: gcxi-share
+      # gcxi secrets mount
+    - mountPath: /genesys/gcxi/var
+      name: gcxi-var
+      readOnly: true
+
+
+  ### Example Local Persistent Volumes ###
+
+  # https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/
+  local:
+    # local PV is a replacement for legacy hostPath mounts
+    # it is compatible with existing gcxi deployments
+    pv:
+      backup:
+        capacity: 1Gi
+        path: /genesys/gcxi/backup
+      log:
+        capacity: 1Gi
+        # host path for main gcxi workers logs volume (Microstrategy server logs)
+        path: /mnt/log/gcxi
+      postgres:
+        capacity: 2Gi
+        # host path for meta db Postgres data volume
+        # assumed to be shared across cluster nodes
+        # or postgres container must be tied to one particular node
+        path: /genesys/gcxi/data
+      share:
+        capacity: 2Gi
+        # host path for main gcxi workers shared data volume (Microstrategy caches and cubes)
+        # assumed to be shared across cluster nodes
+        path: /genesys/gcxi/shared
+
+    sc:
+      name: local-storage
+      policy: Retain

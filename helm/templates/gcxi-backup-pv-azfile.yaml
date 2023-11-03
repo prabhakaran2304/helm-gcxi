@@ -1,0 +1,31 @@
+{{- if or (eq (.Values.gcxi.deployment.deployGlobalShare | default false) true) (eq (.Values.gcxi.deployment.useGlobalShare | default false) false) }}
+{{ if eq (.Values.gcxi.deployment.deployAzureFileShare | default false) true }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+    gcxi/azfile-pv-gcxi-backup: "true"
+    {{ if eq (.Values.gcxi.deployment.deployGlobalShare | default false) true }}
+    gcxi/deployment-code: gcxi{{ template "globalCode" . }}
+    {{- else }}
+    gcxi/deployment-code: gcxi{{ template "deploymentCode" . }}
+    {{- end }}
+    genesysengage.com/cleanup: skip
+  {{ if eq (.Values.gcxi.deployment.deployGlobalShare | default false) true }}
+  name: gcxi-backup-pv-local{{ template "globalCode" . }}
+  {{- else }}
+  name: gcxi-backup-pv-local{{ template "deploymentCode" . }}
+  {{- end }}
+spec:
+  accessModes:
+  - ReadWriteMany
+  azureFile:
+    secretName: gcxi-secret-sa
+    secretNamespace: {{ .Values.gcxi.app.namespace }}
+    shareName: gcxi-backup
+    readOnly: false
+  capacity:
+    storage: {{ .Values.gcxi.local.pv.backup.capacity }}
+{{- end }}
+{{- end }}

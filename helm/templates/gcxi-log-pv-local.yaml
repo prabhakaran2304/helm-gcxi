@@ -1,0 +1,26 @@
+{{ if eq (.Values.gcxi.deployment.deployLocalPV | default false) true }}
+{{ if eq (.Values.gcxi.deployment.deployMain | default false) true }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+  name: gcxi-log-pv-local{{ template "deploymentCode" . }}
+spec:
+  accessModes:
+    - ReadWriteMany
+  capacity:
+    storage: {{ .Values.gcxi.local.pv.log.capacity }}
+  local:
+    path: {{ .Values.gcxi.local.pv.log.path }}
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: gcxi/local-pv-gcxi-log
+          operator: In
+          values:
+          - "true"
+  storageClassName: {{ .Values.gcxi.local.sc.name }}
+{{- end }}
+{{- end }}

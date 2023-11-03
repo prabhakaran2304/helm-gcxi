@@ -1,0 +1,79 @@
+{{ if eq (.Values.gcxi.deployment.deployMain | default false) true }}
+{{ if eq (.Values.gcxi.deployment.deployIngress | default false) true }}
+{{- if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1beta1
+{{- else -}}
+apiVersion: extensions/v1beta1
+{{- end }}
+kind: Ingress
+metadata:
+  annotations:
+    {{- with .Values.gcxi.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.gcxi.ingress.external.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+  name: gcxi-ingress{{ template "deploymentCode" . }}
+  namespace: {{ .Values.gcxi.app.namespace }}
+spec:
+  rules:
+  - http:
+      paths:
+      - path: {{ .Values.gcxi.ingress.path }}
+        backend:
+          serviceName: gcxi{{ template "deploymentCode" . }}
+          servicePort: web
+    host: {{ template "extHost" . }}
+  {{- if eq (.Values.gcxi.ingress.external.tls.enabled | default false) true }}
+  tls:
+    {{- if .Values.gcxi.ingress.external.tls.secretName }}
+  - secretName: {{ .Values.gcxi.ingress.external.tls.secretName }}
+    {{- else  }}
+  - secretName: gcxi-tls{{ template "deploymentCode" . }}
+    {{- end }}
+    hosts:
+    - {{ template "extHost" . }}
+  {{- end }}
+---
+{{- if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1beta1
+{{- else -}}
+apiVersion: extensions/v1beta1
+{{- end }}
+kind: Ingress
+metadata:
+  annotations:
+    {{- with .Values.gcxi.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.gcxi.ingress.internal.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+  name: gcxi-ingress-int{{ template "deploymentCode" . }}
+  namespace: {{ .Values.gcxi.app.namespace }}
+spec:
+  rules:
+  - http:
+      paths:
+      - path: {{ .Values.gcxi.ingress.path }}
+        backend:
+          serviceName: gcxi{{ template "deploymentCode" . }}
+          servicePort: web
+    host: {{ template "intHost" . }}
+  {{- if eq (.Values.gcxi.ingress.internal.tls.enabled | default false) true }}
+  tls:
+    {{- if .Values.gcxi.ingress.internal.tls.secretName }}
+  - secretName: {{ .Values.gcxi.ingress.internal.tls.secretName }}
+    {{- else  }}
+  - secretName: gcxi-tls-int{{ template "deploymentCode" . }}
+    {{- end }}
+    hosts:
+    - {{ template "intHost" . }}
+  {{- end }}
+{{- end }}
+{{- end }}

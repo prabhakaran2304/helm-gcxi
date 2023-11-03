@@ -1,0 +1,62 @@
+{{ if eq (.Values.gcxi.deployment.deployPostgres | default false) true }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+  name: gcxi-postgres
+  namespace: {{ .Values.gcxi.app.namespace }}
+spec:
+  replicas: {{ .Values.gcxi.replicas.postgres }}
+  selector:
+    matchLabels:
+      gcxi/app: gcxi-postgres
+  template:
+    metadata:
+      labels:
+        gcxi/app: gcxi-postgres
+        gcxi/deployment-code: gcxi
+        gcxi/role: gcxi-db
+        {{- with .Values.gcxi.labels }}
+        {{- range $key, $value := $.Values.gcxi.labels.postgres }}
+        {{$key}}: {{$value}}
+        {{- end }}
+        {{- end }}
+      namespace: {{ .Values.gcxi.app.namespace }}
+    spec:
+      containers:
+      - name: gcxi-postgres
+        env:
+        - name: PGDATA
+          value: {{ .Values.gcxi.env.PGDATA }}
+        - name: POSTGRES_USER_FILE
+          value: /genesys/gcxi/var/META_DB_ADMIN
+        - name: POSTGRES_PASSWORD_FILE
+          value: /genesys/gcxi/var/META_DB_ADMINPWD
+        image: {{ .Values.gcxi.images.postgres }}
+        imagePullPolicy: {{ .Values.gcxi.imagePullPolicy.postgres }}
+        ports:
+        {{- range $key, $value := .Values.gcxi.ports.postgres }}
+        - name: {{ $key }}
+          containerPort: {{ $value }}
+        {{- end }}
+        volumeMounts: {{- .Values.gcxi.volumeMounts.postgres | toYaml | nindent 8 }}
+      {{- if .Values.gcxi.nodeSelectors.postgres }}
+      nodeSelector: {{ .Values.gcxi.nodeSelectors.postgres | toYaml | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gcxi.serviceAccount.postgres }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.gcxi.tolerations.postgres }}
+      tolerations: {{ .Values.gcxi.tolerations.postgres | toYaml | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: gcxi-data
+        persistentVolumeClaim:
+          claimName: gcxi-postgres-pvc
+      - name: gcxi-var
+        projected:
+          sources:
+          - secret:
+              name: gcxi-secret-pg
+{{- end }}

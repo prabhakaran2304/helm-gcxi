@@ -1,0 +1,18 @@
+{{ if eq (.Values.gcxi.deployment.deployMain | default false) true }}
+{{- if .Values.gcxi.deployment.deployServiceMonitor -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+  name: gcxi-servicemonitor{{ template "deploymentCode" . }}
+  namespace: {{ .Values.gcxi.app.namespace }}
+spec:
+  selector:
+    matchLabels:
+      gcxi/deployment-code: gcxi{{ template "deploymentCode" . }}
+  endpoints:
+  - interval: 30s
+    port: metrics
+{{- end }}
+{{- end }}

@@ -1,0 +1,15 @@
+{{ if eq (.Values.gcxi.deployment.deployPostgresConfig | default false) true }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+  name: gcxi-config-pg
+  namespace: {{ .Values.gcxi.app.namespace }}
+data:
+  ### Meta db properties ###
+
+  META_DB_HOST: "{{ .Values.gcxi.env.META_DB_HOST }}"
+  META_DB_PORT: "{{ .Values.gcxi.env.META_DB_PORT }}"
+  META_DB_ADMINDB: "{{ .Values.gcxi.env.META_DB_ADMINDB }}"
+{{- end }}

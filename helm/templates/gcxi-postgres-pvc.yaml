@@ -1,0 +1,24 @@
+{{ if eq (.Values.gcxi.deployment.deployPostgres | default false) true }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    {{- include "gcxi.labels" . | nindent 4 }}
+  name: gcxi-postgres-pvc
+  namespace: {{ .Values.gcxi.app.namespace }}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.gcxi.pvc.postgres.capacity }}
+  {{- if eq (.Values.gcxi.deployment.deployLocalPV | default false) true }}
+  storageClassName: {{ .Values.gcxi.local.sc.name }}
+  volumeName: gcxi-postgres-pv-local
+  {{- else }}
+  storageClassName: {{ .Values.gcxi.pvc.postgres.storageClassName }}
+  {{- if .Values.gcxi.pvc.postgres.volumeName }}
+  volumeName: {{ .Values.gcxi.pvc.postgres.volumeName }}
+  {{- end }}
+  {{- end }}
+{{- end }}
